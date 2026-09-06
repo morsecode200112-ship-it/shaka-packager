@@ -274,7 +274,7 @@ jobs:
           # The pssh-box bundle is OS and architecture independent.  So only do
           # it on this one OS and architecture, and give it a more generic
           # filename.
-          if [[ '${{ matrix.os_name }}' == 'linux' && '${{ matrix.target_arch }}' == 'x64' ]]; then
+          if [[ '${{ matrix.os_name }}' == 'linux' && '${{ matrix.target_arch }}' == 'x32' ]]; then
             echo "::group::Tar pssh-box"
             tar -czf $ARTIFACTS/pssh-box.py.tar.gz pssh-box.py pssh-box-protos
             echo "::endgroup::"
