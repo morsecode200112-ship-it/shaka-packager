@@ -61,7 +61,16 @@ jobs:
           // Use enableSelfHosted to decide what the build matrix below should
           // include.
           const {hosted, selfHosted} = buildMatrix;
-          const include = enableSelfHosted ? hosted.concat(selfHosted) : hosted;
+          let include = enableSelfHosted ? hosted.concat(selfHosted) : hosted;
+          
+          // Force Windows architecture to target Win32 instead of x64
+          include = include.map(config => {
+            if (config.os_name && config.os_name.toLowerCase() === 'windows') {
+              config.target_arch = 'Win32';
+            }
+            return config;
+          });
+
           const os = include.map((config) => config.os);
 
           // Output JSON objects consumed by the build matrix below.
@@ -69,7 +78,8 @@ jobs:
               [
                 `INCLUDE=${ JSON.stringify(include) }`,
                 `OS=${ JSON.stringify(os) }`,
-              ].join('\n'),
+              ].join('
+'),
               {flag: 'a'});
 
           // Log the outputs, for the sake of debugging this script.
@@ -113,18 +123,14 @@ jobs:
           kitware_key_path="/usr/share/keyrings/kitware-archive-keyring.gpg"
           kitware_sources_path="/etc/apt/sources.list.d/kitware.list"
 
-          curl -sL "$kitware_key_url" | gpg --dearmor - \
-              | sudo tee "$kitware_key_path" >/dev/null
+          curl -sL "$kitware_key_url" | gpg --dearmor -               | sudo tee "$kitware_key_path" >/dev/null
 
           . /etc/lsb-release  # Defines $DISTRIB_CODENAME (jammy, focal, etc)
 
-          echo "deb [signed-by=$kitware_key_path] http://apt.kitware.com/ubuntu/ $DISTRIB_CODENAME main" \
-              | sudo tee "$kitware_sources_path" >/dev/null
+          echo "deb [signed-by=$kitware_key_path] http://apt.kitware.com/ubuntu/ $DISTRIB_CODENAME main"               | sudo tee "$kitware_sources_path" >/dev/null
 
           sudo apt update
-          sudo apt install -y \
-              cmake \
-              ninja-build
+          sudo apt install -y               cmake               ninja-build
 
       - name: Install Mac deps
         if: runner.os == 'macOS'
@@ -144,10 +150,10 @@ jobs:
           fi
 
           LABEL=$(uname -m)
-          echo "Hardware label: \"$LABEL\""
+          echo "Hardware label: "$LABEL""
 
           if [[ "$LABEL" != "$CORRECT_LABEL" ]]; then
-            echo "Wrong hardware label \"$LABEL\", expecting \"$CORRECT_LABEL\"."
+            echo "Wrong hardware label "$LABEL", expecting "$CORRECT_LABEL"."
             echo "Full uname string: $(uname -a)"
             echo "Full sysctl CPU info:"
             sysctl machdep.cpu
@@ -178,8 +184,7 @@ jobs:
 
           # Do fully static release builds on Linux.
           BUILD_CONFIG="${{ matrix.build_type }}-${{ matrix.lib_type }}"
-          if [[ "${{ runner.os }}" == "Linux" && \
-                "$BUILD_CONFIG" == "Release-static" ]]; then
+          if [[ "${{ runner.os }}" == "Linux" &&                 "$BUILD_CONFIG" == "Release-static" ]]; then
             # Enable build settings for fully-static.
             FULLY_STATIC="ON"
 
@@ -198,12 +203,11 @@ jobs:
             FULLY_STATIC="OFF"
           fi
 
-          cmake \
-            -DCMAKE_BUILD_TYPE="${{ matrix.build_type }}" \
-            -DBUILD_SHARED_LIBS="$BUILD_SHARED_LIBS" \
-            -DFULLY_STATIC="$FULLY_STATIC" \
-            -S . \
-            -B build/
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            cmake               -DCMAKE_BUILD_TYPE="${{ matrix.build_type }}"               -DBUILD_SHARED_LIBS="$BUILD_SHARED_LIBS"               -DFULLY_STATIC="$FULLY_STATIC"               -G "Visual Studio 17 2022" -A Win32               -S .               -B build/
+          else
+            cmake               -DCMAKE_BUILD_TYPE="${{ matrix.build_type }}"               -DBUILD_SHARED_LIBS="$BUILD_SHARED_LIBS"               -DFULLY_STATIC="$FULLY_STATIC"               -S .               -B build/
+          fi
 
       - name: Build
         # This is a universal build command, which will call make on Linux and
@@ -249,7 +253,7 @@ jobs:
           mkdir artifacts
           ARTIFACTS="$GITHUB_WORKSPACE/artifacts"
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cd build/packager/Release
+            cd build/packager/Win32/Release
           else
             cd build/packager
           fi
@@ -274,7 +278,7 @@ jobs:
           # The pssh-box bundle is OS and architecture independent.  So only do
           # it on this one OS and architecture, and give it a more generic
           # filename.
-          if [[ '${{ matrix.os_name }}' == 'linux' && '${{ matrix.target_arch }}' == 'x32' ]]; then
+          if [[ '${{ matrix.os_name }}' == 'linux' && '${{ matrix.target_arch }}' == 'x64' ]]; then
             echo "::group::Tar pssh-box"
             tar -czf $ARTIFACTS/pssh-box.py.tar.gz pssh-box.py pssh-box-protos
             echo "::endgroup::"
