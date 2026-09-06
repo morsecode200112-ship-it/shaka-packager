@@ -60,10 +60,9 @@ jobs:
 
           // Use enableSelfHosted to decide what the build matrix below should
           // include.
-          const {hosted, selfHosted} = buildMatrix;
           let include = enableSelfHosted ? hosted.concat(selfHosted) : hosted;
           
-          // Force Windows architecture to target Win32 instead of x64
+          // Force Windows configurations to build as Win32 (32-bit)
           include = include.map(config => {
             if (config.os_name && config.os_name.toLowerCase() === 'windows') {
               config.target_arch = 'Win32';
@@ -78,8 +77,7 @@ jobs:
               [
                 `INCLUDE=${ JSON.stringify(include) }`,
                 `OS=${ JSON.stringify(os) }`,
-              ].join('
-'),
+              ].join('\n'),
               {flag: 'a'});
 
           // Log the outputs, for the sake of debugging this script.
@@ -123,7 +121,8 @@ jobs:
           kitware_key_path="/usr/share/keyrings/kitware-archive-keyring.gpg"
           kitware_sources_path="/etc/apt/sources.list.d/kitware.list"
 
-          curl -sL "$kitware_key_url" | gpg --dearmor -               | sudo tee "$kitware_key_path" >/dev/null
+          curl -sL "$kitware_key_url" | gpg --dearmor - \
+              | sudo tee "$kitware_key_path" >/dev/null
 
           . /etc/lsb-release  # Defines $DISTRIB_CODENAME (jammy, focal, etc)
 
@@ -150,10 +149,10 @@ jobs:
           fi
 
           LABEL=$(uname -m)
-          echo "Hardware label: "$LABEL""
+          echo "Hardware label: \"$LABEL\""
 
           if [[ "$LABEL" != "$CORRECT_LABEL" ]]; then
-            echo "Wrong hardware label "$LABEL", expecting "$CORRECT_LABEL"."
+            echo "Wrong hardware label \"$LABEL\", expecting \"$CORRECT_LABEL\"."
             echo "Full uname string: $(uname -a)"
             echo "Full sysctl CPU info:"
             sysctl machdep.cpu
@@ -184,7 +183,8 @@ jobs:
 
           # Do fully static release builds on Linux.
           BUILD_CONFIG="${{ matrix.build_type }}-${{ matrix.lib_type }}"
-          if [[ "${{ runner.os }}" == "Linux" &&                 "$BUILD_CONFIG" == "Release-static" ]]; then
+          if [[ "${{ runner.os }}" == "Linux" && \
+                "$BUILD_CONFIG" == "Release-static" ]]; then
             # Enable build settings for fully-static.
             FULLY_STATIC="ON"
 
@@ -204,9 +204,20 @@ jobs:
           fi
 
           if [[ "${{ runner.os }}" == "Windows" ]]; then
-            cmake               -DCMAKE_BUILD_TYPE="${{ matrix.build_type }}"               -DBUILD_SHARED_LIBS="$BUILD_SHARED_LIBS"               -DFULLY_STATIC="$FULLY_STATIC"               -G "Visual Studio 17 2022" -A Win32               -S .               -B build/
+            cmake \
+              -DCMAKE_BUILD_TYPE="${{ matrix.build_type }}" \
+              -DBUILD_SHARED_LIBS="$BUILD_SHARED_LIBS" \
+              -DFULLY_STATIC="$FULLY_STATIC" \
+              -G "Visual Studio 17 2022" -A Win32 \
+              -S . \
+              -B build/
           else
-            cmake               -DCMAKE_BUILD_TYPE="${{ matrix.build_type }}"               -DBUILD_SHARED_LIBS="$BUILD_SHARED_LIBS"               -DFULLY_STATIC="$FULLY_STATIC"               -S .               -B build/
+            cmake \
+              -DCMAKE_BUILD_TYPE="${{ matrix.build_type }}" \
+              -DBUILD_SHARED_LIBS="$BUILD_SHARED_LIBS" \
+              -DFULLY_STATIC="$FULLY_STATIC" \
+              -S . \
+              -B build/
           fi
 
       - name: Build
